@@ -121,16 +121,6 @@
                 console.log(this.currentPage);
                 this.queryRoleForPage(this.input);
             },
-             /*   //首页
-                userFirst() {
-                    this.currentPage = 1;
-                    this.queryRoleForPage(this.input);
-                },
-                //尾页
-                userLast() {
-                    this.currentPage = (this.total / this.pagesize);
-                    this.queryRoleForPage(this.input);
-                },*/
             //角色查询
             async queryRoleForPage(queryName) {
                 try {
@@ -200,7 +190,6 @@
                             if (this.data2[i].fid === '0'){
                                 this.data2[i].children=[];
                                 this.defaultExpandedKeys.push(this.data2[i]._id);
-
                                 this.tList.push(this.data2[i]);//
                                 console.log("111111111",this.tList);
                             }else {//fid != 0 a1   [a1]
@@ -226,9 +215,12 @@
             },
             add(){
                 let rad='';
-                //let ridsa = this.$refs.tree.getCheckedKeys().join(',');// 获取当前的选中的数据[数组] -id, 把数组转换成字符串
+                let ridsa = this.$refs.tree.getCheckedKeys().join(',');// 获取当前的选中的数据[数组] -id, 把数组转换成字符串
                 let ridsb = this.$refs.tree.getCheckedNodes();// 获取当前的选中的数据{对象}
-                console.log(ridsb);
+                let ridsc = this.$refs.tree.getHalfCheckedNodes	();
+                console.log("221",ridsa);
+                console.log("222",ridsb);
+                console.log("223",ridsc);
                 ridsb.forEach(ids=>{//获取选中的所有的父级id
                     rad+=','+ids.pid
                 });

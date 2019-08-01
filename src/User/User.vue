@@ -38,25 +38,18 @@
                 <el-form-item label="登录密码" :label-width="formLabelWidth">
                     <el-input v-model="form.loginPwd" autocomplete="off"></el-input>
                 </el-form-item>
-                 <el-form-item >
-                    <!-- <el-select v-model="value" placeholder="请选择">
-                         <el-option
-                                 v-for="item in options"
-                                 :key="item.value"
-                                 :label="item.label"
-                                 :value="item.value">
-                         </el-option>
-                     </el-select>-->
-               <!-- <el-dropdown size="mini" split-button type="primary">
-                    地区
-                    <el-dropdown-menu slot="dropdown">
-                        <el-dropdown-item>黄金糕</el-dropdown-item>
-                        <el-dropdown-item>狮子头</el-dropdown-item>
-                        <el-dropdown-item>螺蛳粉</el-dropdown-item>
-                        <el-dropdown-item>双皮奶</el-dropdown-item>
-                        <el-dropdown-item>蚵仔煎</el-dropdown-item>
-                    </el-dropdown-menu>
-                </el-dropdown>-->
+                <el-form-item label="地区" :label-width="formLabelWidth">
+                    <el-cascader :options="options" :props="defaultProps" v-model="form.address"
+                                  clearable></el-cascader>
+                </el-form-item>
+                <el-form-item label="角色" :label-width="formLabelWidth">
+                    <el-select v-model="form.role" placeholder="请选择角色">
+                        <el-option
+                                v-for="aa in roles"
+                                :label="aa.name"
+                                :value="aa._id">
+                        </el-option>
+                    </el-select>
                 </el-form-item>
             </el-form>
             <div slot="footer" class="dialog-footer">
@@ -73,60 +66,62 @@
     </div>
 </template>
 <script>
-    import ElRow from "element-ui/packages/row/src/row";
-    import ElButton from "../../node_modules/element-ui/packages/button/src/button.vue";
-    import ElCol from "element-ui/packages/col/src/col";
-    import {queryUserForPage} from '../api'
+    import {queryUserForPage,queryRoleForPage} from '../api'
     import {userDelete} from '../api'
     import {setPassword} from '../api'
     import {userInsert} from '../api'
+    import {queryDeptList} from '../api'
+
     export default {
-        components: {
-            ElCol,
-            ElButton,
-            ElRow
-        },
         data() {
             return {
                 value:"",
                 input: '',
+                emitPath:false,
                 dialogFormVisible: false,
                 formLabelWidth: '120px',
                 form: {
                     loginName: '',
                     loginPwd: '',
                     address: '',
-                    role: '',
+                    role:'',
+                },
+                defaultProps: {
+                    label: 'name',
+                    value: '_id',
+                    emitPath : false
                 },
                 index: '',
-
                 update: false,
                 list: [],
+                tList:[],
                 pagesize: 6,
                 currentPage: 1,
-                total: 30
+                total: 30,
+                options :[],
+                roles :[]
             }
         },
         methods: {
+            //回显
             adduser(){
                 this.form = {};
+                this.queryDeptList1();
+                this.queryRoleForPage1();
                 this.dialogFormVisible = true;
             },
+            //弹出对话框之后点击确定后添加数据
             add(){
+                console.log( "113",this.form.address);
+                this.userInsert1(this.form.loginName,this.form.loginName,this.form.address,this.form.role);
 
-
-
-
-
-
-
-
-                this.userInsert1(this.form.loginName,this.form.loginName);
                 this.dialogFormVisible = false;
             },
+            //查找
             selectuser() {
                 this.queryUserForPage(this.input);
             },
+            //重置密码
             async setPassword(id) {
                 try {
                     let result = await setPassword({id: id}, "GET");
@@ -141,12 +136,15 @@
                     this.$message.error('系统异常，请联系管理员');
                 }
             },
-            async userInsert1(loginName,loginPwd) {
+            //用户添加
+            async userInsert1(loginName,loginPwd,dept,role) {
                 try {
-                    let result = await userInsert({loginName: loginName,loginPwd:loginPwd}, "POST");
+                    let result = await userInsert(
+                        {loginName: loginName,loginPwd:loginPwd,dept:dept,role:role},
+                        "POST");
                     if (result.code == 0) {
-                       console.log("000000000",result.data);
-                       this.queryUserForPage(this.input);
+                        console.log("000000000",result.data);
+                        this.queryUserForPage(this.input);
                         this.$message.success('添加用户成功');
                     }
                     else {
@@ -192,13 +190,14 @@
                 this.setPassword(row._id);
             },
             //用户查询
-            async queryUserForPage(queryName) {
+            async queryUserForPage1(queryName) {
                 try {
                     let result = await queryUserForPage({
                         queryName: queryName,
                         page: this.currentPage,
                         rows: this.pagesize
                     }, "GET");
+                    console.log("200",result);
                     if (result.code == 0) {
                         this.list = result.data.list;
                         this.total = result.data.count;
@@ -215,27 +214,68 @@
             filterHandle(value, row) {
                 return this.input === row.name;
             },
-            handleSizeChange: function (size) {
-                //每页下拉显示数据
-                this.pagesize = size;
-            },
             //事件 分页显示数据
             handleCurrentChange: function (currentPage) {
                 //点击第几页
                 this.currentPage = currentPage;
                 this.queryUserForPage(this.input);
             },
-            //首页
-            userfrist() {
-                this.currentPage = 1;
+            //查询所有地区的集合 分级别
+            async queryDeptList1() {
+                try {
+                    let result = await queryDeptList( "GET");
+                    if (result.code == 0) {
+                        let tlist = [];
+                        //三级联动
+                        for (let j = 0; j < result.data.length; j++) {
+                            let item = result.data[j];
+                            if (!item.fid || item.fid == '0') {
+                                tlist.push(item);
+                            } else {
+                                for (let k = 0; k < result.data.length; k++) {
+                                    let tItem = result.data[k];
+                                    if (tItem._id == item.fid) {
+                                        if (tItem.children) {
+                                            tItem.children.push(item);
+                                        } else {
+                                            tItem.children = [];
+                                            tItem.children.push(item);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        this.options = tlist;
+                    }
+                    else {
+                        this.$message.error('获取列表失败');
+                    }
+                } catch (e) {
+                    alert(e.message);
+                    this.$message.error('系统异常，请联系管理员');
+                }
             },
-            //尾页
-            userlast() {
-                this.currentPage = (this.total / this.pagesize);
+            //查询所有的权限分配
+            async queryRoleForPage1() {
+                try {
+                    let result = await queryRoleForPage( 'GET');
+                    if (result.code == "0") {
+                        this.roles = result.data;
+                        console.log("256",this.roles);
+                    } else {
+                        this.$message.error('查询用户失败');
+                    }
+                } catch (e) {
+                    alert(e.message);
+                    this.$message.error('系统异常，请联系管理员');
+                }
             },
+
         },
         mounted() {
-            this.queryUserForPage(this.input);
+            this.queryUserForPage1(this.input);
+            //this.queryRoleForPage1();
+            //his.queryDeptForPage1();
         },
     }
 </script>

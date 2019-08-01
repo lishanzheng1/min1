@@ -10,7 +10,6 @@ import Gather from '../Gather/Gather.vue'
 import Accounts from '../Accounts/Accounts.vue'
 import Gatheruser from '../Gatheruser/Gatheruser.vue'
 export const routes = [
-
     {path: '/', name: "Login", component: Login},
     {
         path: '/home', name: "Index", component: Index, children: [
@@ -33,4 +32,4 @@ export const routes = [
     ]
     },
 
-]
+];

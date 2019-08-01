@@ -140,7 +140,7 @@
           let result = await userLogout("GET");
           if (result.code == 0) {
             //    清除本地sessionId
-            //storageUtil.save("sessionId", "");
+            storageUtil.save("sessionId", "");
             this.$message.success('退出成功');
             this.$router.replace("/");
           }
@@ -153,7 +153,7 @@
         }
       },
       async queryMenuForList(myMenu) {
-          console.log("157",myMenu);的
+          console.log("157",myMenu);
         try {
           let result = await queryMenuForList();
           if (result.code === 0) {
