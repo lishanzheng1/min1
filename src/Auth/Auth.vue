@@ -1,276 +1,387 @@
 <template>
-    <div class="el-main">
-        <el-row >
-            <el-breadcrumb separator-class="el-icon-arrow-right">
-                <el-breadcrumb-item :to="{ path: '/hello' }">基础服务</el-breadcrumb-item>
-                <el-breadcrumb-item >角色权限管理</el-breadcrumb-item>
-            </el-breadcrumb>
-        </el-row>
-        <el-row style="margin: 20px 0 0 0 ; float: left">
-            <em>角色名称</em>
-            <el-input placeholder="角色权限管理" v-model="input" clearable style="width: 200px">用户名</el-input>
-            <el-button type="primary" @click="selectUser">查询</el-button>
-        </el-row>
-        <el-table :data="list">
-            <el-table-column label="序号" type="index" width="50">
-            </el-table-column>
-            <el-table-column prop="name" label="角色名称" sortable>
-            </el-table-column>
-            <el-table-column label="操作">
-                <template slot-scope="scope">
-                    <el-button  type="primary"  icon="el-icon-setting"
-                                @click="handleEdit(scope.$index, scope.row)"></el-button>
-                </template>
-            </el-table-column>
-        </el-table>
-        <pages
-                :total='total'
-                :currentPage='currentPage'
-                :pageSize='pagesize'
-                @handleCurrentChangeSub="handleCurrentChange"
-        ></pages>
-        <el-dialog  title="设置权限" :visible.sync="dialogFormVisible">
-            <el-tree :data="data2"
-                     show-checkbox
-                     node-key="_id"
-                     ref="tree"
-                     :props="defaultProps"
-                     :default-expanded-keys ="defaultExpandedKeys"
-                     :default-checked-keys= "defaultCheckedKeys"
-            >
-            </el-tree>
+    <section>
+        <el-main style="padding-top: 5px">
+            <el-col :span="24">
+                <el-col :span="21" class="toolbar">
+                    <el-breadcrumb separator-class="el-icon-arrow-right">
+                        <el-breadcrumb-item>基础服务</el-breadcrumb-item>
+                        <el-breadcrumb-item>角色权限管理</el-breadcrumb-item>
+                    </el-breadcrumb>
+                </el-col>
+            </el-col>
+            <el-col :span="24" class="toolbar" style="padding-bottom: 0px;">
+                <el-form inline>
+                    <el-form-item label="角色名称">
+                        <el-input placeholder="请输入角色关键字" v-model.trim="queryData.queryName" @keyup.enter.native="query" clearable></el-input>
+                    </el-form-item>
+                    <el-form-item>
+                        <el-button type="primary" @click="query">搜索</el-button>
+                    </el-form-item>
+                    <!--<el-form-item>-->
+                    <!--<el-button type="primary" @click="handleAdd">创建角色</el-button>-->
+                    <!--</el-form-item>-->
+                </el-form>
+            </el-col>
+            <el-table :data="tableData" highlight-current-row v-loading="listLoading">
+                <el-table-column fixed label="序号" width="50" align="center">
+                    <template slot-scope="scope">
+                        <span>{{scope.$index + 1 + (queryData.page - 1) * queryData.pageSize}}</span>
+                    </template>
+                </el-table-column>
+                <el-table-column prop="name" label="角色名称"></el-table-column>
+                <!--<el-table-column prop="createtime" label="创建时间"></el-table-column>-->
+                <el-table-column fixed="right" label="操作" width="220">
+                    <template slot-scope="scope">
+                        <!--<el-button type="info" class="el-icon-edit" @click="handleUpt(scope.row)"></el-button>-->
+                        <!--<el-button type="danger" class="el-icon-delete" @click="handleDel(scope.row)"></el-button>-->
+                        <el-button type="primary" class="el-icon-setting" @click="handleSetMenu(scope.row)" title="设置权限"></el-button>
+                    </template>
+                </el-table-column>
+            </el-table>
+
+            <pages
+                    :total='total'
+                    :currentPage='currentPage'
+                    :pageSize='pagesize'
+                    @handleCurrentChangeSub="handleCurrentChange"
+            ></pages>
+        </el-main>
+
+        <el-dialog :title="title" :visible.sync="dialogVisible" :close-on-click-modal="false">
+            <el-form label-width="80px" :rules="rules" :model="formData" ref="formData">
+                <el-input auto-complete="off" v-model="formData.id" style="display: none"></el-input>
+                <el-form-item label="角色名称" prop="name">
+                    <el-input auto-complete="off" v-model.trim="formData.name"></el-input>
+                </el-form-item>
+            </el-form>
             <div slot="footer" class="dialog-footer">
-                <el-button @click="dialogFormVisible = false">取 消</el-button>
-                <el-button type="primary" @click="add">确 定</el-button>
+                <el-button @click="dialogVisible = false">取消</el-button>
+                <el-button type="primary" @click="formSubmit" :loading="submitLoading">提交</el-button>
             </div>
         </el-dialog>
-    </div>
+
+        <el-dialog title="设置权限" :visible.sync="dialogSetMenuVisible" :close-on-click-modal="false">
+            <el-tree
+                    :data="menuDatas"
+                    show-checkbox
+                    default-expand-all
+                    node-key="_id"
+                    ref="menu_tree"
+                    highlight-current
+                    :props="defaultProps">
+            </el-tree>
+            <div slot="footer" class="dialog-footer">
+                <el-button @click="dialogSetMenuVisible = false">取消</el-button>
+                <el-button type="primary" @click="setMenuSubmit" :loading="submitLoading">提交</el-button>
+            </div>
+        </el-dialog>
+    </section>
+
 </template>
+
 <script>
-    import ElRow from "element-ui/packages/row/src/row";
-    import ElButton from "../../node_modules/element-ui/packages/button/src/button.vue";
-    import ElCol from "element-ui/packages/col/src/col";
-    import {queryRoleForPage} from '../api';
-    import {queryRoleOne  } from '../api';
-    import {roleUpdate} from '../api';
-    import {queryMenuForList  } from '../api';
+    import {
+        queryRoleForPage,
+        queryRoleOne,
+        roleInsert,
+        roleUpdate,
+        roleDelete,
+        queryMenuForList
+        //menuTree,
+        //updateRoleMenuRelation,
+        //queryMenuIdArrByRoleId
+    } from '../api'
+
     export default {
-        components: {
-            ElCol,
-            ElButton,
-            ElRow
-        },
-        data() {
+        data () {
             return {
+                pagesize: 6,
+                currentPage: 1,
+                total: 30,
+                title: '',   //弹出框标题
+                dialogVisible: false,  //弹出框是否显示
+                dialogSetMenuVisible: false,
+                submitLoading: false,  //提交等待是否显示
+                listLoading: false,  //数据加载等待是否显示
+                tableData:  null,  //表格数据
+                queryData: {
+                    queryName: '',  //模糊搜索内容
+                    page: 1,   //表格当前页
+                    pageSize: 9,   //表格每页记录数
+                },
+                formData : {  //表单数据
+                    id: 0,
+                    name: ''
+                },
+                rules: {  //数据校验规则
+                    name: [
+                        { required: true, message: '请输入角色名称', trigger: 'blur' }
+                    ]
+                },
+                handleRoleId: 0,
+                menuDatas: '',
                 defaultProps: {
                     children: 'children',
-                    label: 'name'
-                },
-                data2 :[],
-                tList:[],
-                input: '',
-                index: '',
-                list: [],
-                roleMenu : [],
-                defaultCheckedKeys:[],
-                defaultExpandedKeys:[],
-                total: 5,
-                pagesize: 5,
-                currentPage: 1,
-                id: '',
-                dialogFormVisible :false
-            }
+                    label: 'label'
+                }
+            };
         },
         methods: {
-            //设置权限  显示
-            handleEdit(index, row) {
-                this.dialogFormVisible = true;
-                console.log(index);
-                this.id = row._id;
-                this.tList= [];
-                //点击出树 父子形状
-                this.queryMenuList();
-                console.log("1111111111111111111111",this.list[index]);
-                this.roleMenu =JSON.parse(this.list[index].roleMenu);
-                console.log("000000000",this.roleMenu);
-                //console.log("1111",this.defaultCheckedKeys);
-                this.defaultCheckedKeys = this.roleMenu.map((a,b) =>{
-                    return a.id;
+            handleCurrentChange (val) {
+                this.page = val;
+                this.loadTableData();
+            },
+            async loadTableData () {
+                this.listLoading = true;
+                try{
+                    const result = await queryRoleForPage(this.queryData, "GET");
+                    if(result.code == "0"){
+                        this.tableData = result.data.list;
+                        this.total = result.data.totalNum;
+                    } else {
+                        this.$message.error('角色列表查询失败，请联系管理员');
+                    }
+                } catch (e) {
+                    this.$message.error('系统异常，请联系管理员');
+                }
+                this.listLoading = false;
+            },
+            async loadTree () {
+                let result = await queryMenuForList();
+                if(result.code == '0'){
+                    result = JSON.parse(JSON.stringify(result).replace(/name/g, "label"));
+                    if(result.data.length > 0){
+                        let map = {};
+                        let resultArr = [];
+                        result.data.forEach((item, index) => {
+                            item.children = [];
+                            map[item._id] = item;
+                        });
+                        result.data.forEach((item, index) => {
+                            if (item.fid == '0') {
+                                resultArr.push(item);
+                            } else {
+                                let parent = map[item.fid];
+                                parent.children.push(item);
+                            }
+                        });
+                        this.menuDatas = resultArr;
+                    }
+                }
+            },
+            query () {
+                this.queryData.page = 1;
+                this.loadTableData();
+            },
+            handleAdd () {
+                this.title = "新增";
+                this.dialogVisible = true;
+                this.clearFormData();
+            },
+            async handleUpt (row) {
+                this.title = "编辑";
+                this.dialogVisible = true;
+
+                try {
+                    const result = await queryRoleOne({id: row._id}, "GET");
+                    console.log(result)
+                    if(result.code == "0"){
+                        this.formData = {
+                            id: result.data._id,
+                            name: result.data.name
+                        };
+                    } else {
+                        this.$message.error('获取角色信息失败，请联系管理员');
+                    }
+                } catch (e) {
+                    alert(e.message);
+                    this.$message.error('系统异常，请联系管理员');
+                }
+            },
+            clearFormData () {
+                this.formData = {
+                    id: 0,
+                    name: ''
+                }
+            },
+            async formSubmit () {
+                let bool = false;
+
+                this.$refs.formData.validate((valid) => {
+                    bool = valid;
                 });
-               /* this.defaultExpandedKeys = this.roleMenu.map((a,b) =>{
-                    return a.id;
-                });*/
-                console.log("222",this.defaultCheckedKeys);
-            },
-            // 查询
-            selectUser() {
-                console.log(this.input);
-                this.currentPage = 1;
-                this.queryRoleForPage(this.input);
 
-            },
-            filterHandle(value, row) {
-                return this.input === row.name;
-            },
-            handleSizeChange: function (size) {
-                this.pagesize = size;
-                console.log(this.pagesize)
-            },
-            handleCurrentChange: function (currentPage) {
-                this.currentPage = currentPage;
-                console.log(this.currentPage);
-                this.queryRoleForPage(this.input);
-            },
-            //角色查询
-            async queryRoleForPage(queryName) {
-                try {
-                    let result = await queryRoleForPage({
-                        queryName: queryName,
-                        page: this.currentPage,
-                        rows: this.pagesize
-                    }, "GET");
-                    if (result.code == 0) {
-                        console.log(result.data);
-                        this.list = result.data.list;
+                if(!bool){
+                    return;
+                }
+                this.submitLoading = true;
+                if(this.formData.id == 0){
+                    try {
+                        const result = await roleInsert(this.formData, "POST");
+                        if(result.code == "0"){
+                            this.$message({message: '恭喜你，角色信息添加成功', type: 'success'});
+                            this.dialogVisible = false;
+                            this.clearFormData();
+                            this.loadTableData();
+                        } else {
+                            this.$message.error('角色信息添加失败，请联系管理员');
+                        }
+                    } catch (e) {
+                        alert(e.message);
+                        this.$message.error('系统异常，请联系管理员');
                     }
-                    else {
-                        this.$message.error('获取列表失败');
+                    this.submitLoading = false;
+                } else {
+                    try {
+                        const result = await roleUpdate(this.formData, "POST");
+                        if(result.code == "0"){
+                            this.$message({message: '恭喜你，角色信息修改成功', type: 'success'});
+                            this.dialogVisible = false;
+                            this.clearFormData();
+                            this.loadTableData();
+                        } else {
+                            this.$message.error('角色信息修改失败，请联系管理员');
+                        }
+                    } catch (e) {
+                        alert(e.message);
+                        this.$message.error('角色信息添加失败，请联系管理员');
+                    }
+                }
+            },
+            handleDel (row) {
+                this.$confirm('确认删除该记录吗?', '提示', {
+                    type: 'warning'
+                }).then(() => {
+                    this.deleteOne(row._id);
+                }).catch(() => { });
+            },
+            async deleteOne (id) {
+                try {
+                    const result = await roleDelete({id}, "GET");
+                    if(result.code == "0"){
+                        if(result.data.status == '-1'){
+                            this.$message.error('角色有对应的用户，角色不能删除');
+                        } else {
+                            this.$message({message: '恭喜你，角色信息删除成功', type: 'success'});
+                            this.loadTableData();
+                        }
+                    } else {
+                        this.$message.error('角色信息删除失败，请联系管理员');
                     }
                 } catch (e) {
                     alert(e.message);
                     this.$message.error('系统异常，请联系管理员');
                 }
             },
-            //通过id 修改
-            async roleUpdate1(id,roleMenu) {
-                console.log(id);
+            async handleSetMenu (row) {
+                //通过当前选择位置 获得到他所在的_id
+                this.handleRoleId = row._id;
+                //弹出设置复选框
+                this.dialogSetMenuVisible = true;
+                //修改某一个值时候 通过id单查询出
                 try {
-                    let result = await roleUpdate({
-                            id : id,
-                            roleMenu : roleMenu,
-
-                    }, "POST");
-                    if (result.code == 0) {
-                        //this.list = result.data;
-                        this.queryRoleForPage(this.input);
-                        this.$message.success('修改成功');
-                    }
-                    else {
-                        this.$message.error('获取列表失败');
-                    }
-                } catch (e) {
-                    alert(e.message);
-                    this.$message.error('系统异常，请联系管理员');
-                }
-            },
-            //单条查询  通过id修改
-            async queryRoleOne(id) {
-                console.log(id);
-                try {
-                    let result = await queryRoleOne({id : id}, "GET");
-                    console.log(result+"单的id");
-                    if (result.code == 0) {
-                        this.list = result;
-                    }
-                    else {
-                        this.$message.error('获取列表失败');
-                    }
-                } catch (e) {
-                    alert(e.message);
-                    this.$message.error('系统异常，请联系管理员');
-                }
-            },
-            //详情菜单
-            async queryMenuList() {
-                try {
-                    let result = await queryMenuForList();
-                    if (result.code === 0) {
-                        this.data2 = result.data;
-                        for (let i = 0; i <this.data2.length ; i++) {
-                            if (this.data2[i].fid === '0'){
-                                this.data2[i].children=[];
-                                this.defaultExpandedKeys.push(this.data2[i]._id);
-                                this.tList.push(this.data2[i]);//
-                                console.log("111111111",this.tList);
-                            }else {//fid != 0 a1   [a1]
-                                for (let j = 0; j < this.tList.length; j++) {
-                                    if (this.tList[j]._id === this.data2[i].fid){
-
-                                        this.tList[j].children.push(this.data2[i]);
-                                    }
+                    const result = await queryRoleOne({id: row._id}, "GET");
+                    if(result.code == "0"){
+                        let idArr = [];
+                        //判断返回值有没有
+                        if(result.data.roleMenu == null || result.data.roleMenu == undefined){
+                            this.$refs.menu_tree.setCheckedKeys(idArr);
+                            return;
+                        }
+                        //解析为json对象
+                        let arr = JSON.parse(result.data.roleMenu);
+                        if(arr.length > 0){
+                            for(let i = 0; i < arr.length; i++){
+                                if(arr[i].type == 'Checked' ){
+                                    idArr.push(arr[i].id);
                                 }
                             }
                         }
-                        console.log("00000000000",this.tList);
-                        this.data2 =  this.tList;
-                        console.log("zzzz",this.data2);
+                        //设置勾选的节点
+                        this.$refs.menu_tree.setCheckedKeys(idArr);
+                    } else {
+                        this.$message.error('获取角色信息失败，请联系管理员');
                     }
                 } catch (e) {
                     alert(e.message);
                     this.$message.error('系统异常，请联系管理员');
                 }
             },
-            resetChecked() {
-                this.$refs.tree.setCheckedKeys([]);
-            },
-            add(){
-                let rad='';
-                let ridsa = this.$refs.tree.getCheckedKeys().join(',');// 获取当前的选中的数据[数组] -id, 把数组转换成字符串
-                let ridsb = this.$refs.tree.getCheckedNodes();// 获取当前的选中的数据{对象}
-                let ridsc = this.$refs.tree.getHalfCheckedNodes	();
-                console.log("221",ridsa);
-                console.log("222",ridsb);
-                console.log("223",ridsc);
-                ridsb.forEach(ids=>{//获取选中的所有的父级id
-                    rad+=','+ids.pid
+            async setMenuSubmit () {
+                //得到了选中的节点
+                let checkedKeys = this.$refs.menu_tree.getCheckedKeys();
+                //得到了半选中的节点
+                let halfCheckedKeys = this.$refs.menu_tree.getHalfCheckedKeys();
+                //遍历选中的节点
+                let arr = [];
+                checkedKeys.forEach((item, index) => {
+                    arr.push({id: item, type: 'Checked'});
                 });
-            console.log(ridsb[0]._id);
-//                console.log(ridsb.length);
-                let  nodeId=[];
-                for (let i=0;i<ridsb.length;i++)
-                {      let rid=ridsb[i];
-                    nodeId.push({id:rid._id,type:"Checked"});
-//                     nodeId.type.push("Checked");
-                }
-                console.log('nodeID',nodeId);
-                console.log('ID',this.id);
-                console.log(nodeId);
-                this.roleUpdate1(this.id, JSON.stringify(nodeId));
-                this.dialogFormVisible = false;
-            },
+                //遍历选中的节点
+                halfCheckedKeys.forEach((item, index) => {
+                    arr.push({id: item, type: 'HalfChecked'});
+                });
 
-        },
-        async mounted() {
-            this.queryRoleForPage(this.input);
-     /*       try {
-                let result =  await queryMenuForList();
-                if (result.code === 0 ){
-                    this.data2 = result.data;
+                let param = {
+                    id: this.handleRoleId,
+                    roleMenu: JSON.stringify(arr)
+                };
+
+                try {
+                    const result = await roleUpdate(param, "POST");
+                    if(result.code == '0'){
+                        this.$message({message: '恭喜你，权限设置成功', type: 'success'});
+                        this.dialogSetMenuVisible = false;
+                        this.loadTableData();
+                    } else {
+                        this.$message.error('权限设置失败，请联系管理员');
+                    }
+                } catch (e) {
+                    alert(e.message);
+                    this.$message.error('系统异常，请联系管理员');
                 }
-            }catch (e) {
-                alert(e.message);
-                this.$message.error('系统异常，请联系管理员');
             }
-*/
-
         },
+        mounted () {
+            this.loadTableData();
+            this.loadTree();
+        }
     }
 </script>
-<style>
-    .el-main {
-    }
 
-    .el-main button {
-        margin-left: 20px !important;
+<style type="text/css" scoped>
+    .toolbar {
+        background: #f2f2f2;
+        padding: 10px;
+        margin: 10px 0px;
     }
-
-    em {
-        font-style: normal;
-        margin-right: 10px;
+    .el-tree{
+        background-color: #fff;
+        color:#333;
+        padding-top:15px;
     }
-
-    /*.el-table td,el-table th{*/
-    /*text-align: center!important;*/
+    .el-tree-node:focus>.el-tree-node__content{
+        background-color:#F5F7FA;
+    }
+    /*.el-tree-node__content:hover{*/
+    /*background-color:#F5F7FA!important;*/
     /*}*/
-
+    .el-header {
+        background-color: #fff;
+        color: #333;
+        line-height: 60px;
+        padding: 0px;
+        margin: 0px;
+    }
+    .el-footer {
+        background-color: #fff;
+        color: #333;
+        line-height: 60px;
+    }
+    .el-aside {
+        color: #333;
+    }
+    .el-form--inline {
+        margin-bottom: -10px;
+    }
 </style>

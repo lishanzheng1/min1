@@ -10,8 +10,9 @@
           </el-col>
           <el-col :span="7" style="height: 100% ; background-color: #3A8EE6">
             <el-dropdown style="margin-top: 5%!important; margin-right: 30%!important">
-              <span class="el-dropdown-link" style="display: inline-block">欢迎你:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{{name}}&nbsp;&nbsp;&nbsp;{{deptName}}</span>
+              <span class="el-dropdown-link" style="display: inline-block">欢迎你:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{{userLoginName}}&nbsp;&nbsp;&nbsp;{{userLoginDept}}</span>
               <el-dropdown-menu slot="dropdown">
+                <el-dropdown-item><span @click="info">geren</span></el-dropdown-item>
                 <el-dropdown-item><span @click="out">退出登录</span></el-dropdown-item>
               </el-dropdown-menu>
             </el-dropdown>
@@ -40,7 +41,7 @@
 
 <script>
   import storageUtil from '../util/storageUtil'
-  import {userLogout,queryMenuForList,loginerRoleMenu} from '../api'
+  import {userLogout,queryMenuForList,loginerRoleMenu,userInfo} from '../api'
   export default {
     name: 'HelloWorld',
     data() {
@@ -104,8 +105,8 @@
           children: 'children',
           label: 'name'
         },
-        name: '',
-        deptName: '',
+        userLoginName: '',
+        userLoginDept: '',
       };
     },
     methods: {
@@ -119,8 +120,12 @@
           }*/
         });
       },
-      getRouterData() {
+     /* getRouterData() {
         this.name = this.$route.params.name;
+      },*/
+      //个人信息
+      info(){
+
       },
       //退出
       out() {
@@ -210,12 +215,19 @@
 
 
     },
-    mounted() {
-      this.name = storageUtil.read('loginName');
+    async mounted() {
+      const result = await userInfo();
+      if (result.code == '0') {
+        console.log(result.data);
+        this.userLoginName = result.data.loginName;
+        this.userLoginDept = result.data.dept;
+        this.loginerRoleMenu1(storageUtil.read('sessionId'));
+      }
+    /*  this.name = storageUtil.read('loginName');
       this.deptName = storageUtil.read('deptName');
-      console.log(this.deptName);
+      console.log(this.deptName);*/
       //新
-      this.loginerRoleMenu1(storageUtil.read('sessionId'));
+
      //this.queryMenuForList();
     },
   };

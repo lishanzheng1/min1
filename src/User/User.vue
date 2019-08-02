@@ -66,11 +66,12 @@
     </div>
 </template>
 <script>
-    import {queryUserForPage,queryRoleForPage} from '../api'
-    import {userDelete} from '../api'
-    import {setPassword} from '../api'
-    import {userInsert} from '../api'
-    import {queryDeptList} from '../api'
+    import {queryUserForPage,
+        queryRoleForPage,
+        userDelete,
+        setPassword,
+        userInsert,
+        queryDeptList} from '../api'
 
     export default {
         data() {
@@ -106,7 +107,7 @@
             //回显
             adduser(){
                 this.form = {};
-                this.queryDeptList1();
+                this.queryDeptList();
                 this.queryRoleForPage1();
                 this.dialogFormVisible = true;
             },

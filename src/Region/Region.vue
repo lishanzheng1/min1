@@ -42,9 +42,7 @@
     </div>
 </template>
 <script>
-    import ElRow from "element-ui/packages/row/src/row";
-    import ElButton from "../../node_modules/element-ui/packages/button/src/button.vue";
-    import ElCol from "element-ui/packages/col/src/col";
+
     import {queryDeptForPage} from '../api'
     import {deptInsert} from '../api'
     import {deptDelete} from '../api'
@@ -53,11 +51,6 @@
     import {userInfo,queryUserOne} from '../api'
     import storageUtil from '../util/storageUtil'
         export default {
-            components: {
-                ElCol,
-                ElButton,
-                ElRow
-            },
             data() {
                 return {
                     input: '',
